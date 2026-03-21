@@ -1,0 +1,65 @@
+/* src/assets/css/style.css */
+
+:root {
+    /* Primary Colors */
+    --color-primary: #1FA971;
+    --color-secondary: #39C98A;
+    --color-accent: #3A86FF;
+
+    /* Background & Surfaces */
+    --bg-main: #F6F9FB;
+    --bg-surface: #FFFFFF;
+
+    /* Text Colors */
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B7280;
+
+    /* Status Colors */
+    --status-success: #22C55E;
+    --status-warning: #F59E0B;
+    --status-danger: #EF4444;
+    --status-info: #3A86FF;
+
+    /* UI Elements */
+    --border-color: #E5E7EB;
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+}
+
+/* Base Body Application */
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif; /* Highly recommend Inter for this clean look */
+}
+
+/* Reusable Utility Classes */
+.text-gradient {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mt-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-soft);
+    border-radius: 16px; /* Smooth, modern corners */
+}
+
+.btn-primary-mt {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary-mt:hover {
+    background-color: var(--color-secondary);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+}
