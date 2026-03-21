@@ -149,7 +149,7 @@ export default function AuthPage() {
                             <input 
                                 type="text" 
                                 className="form-control form-control-lg border-0 bg-light rounded-4 px-4" 
-                                placeholder="e.g. FUHSI/ITH/24/001"
+                                placeholder="e.g. 23/ITH/076"
                                 value={loginId} onChange={(e) => setLoginId(e.target.value)} required 
                             />
                         </div>
@@ -189,7 +189,7 @@ export default function AuthPage() {
                             <div className="animate-fade-in d-flex flex-column gap-3">
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Preferred Username</label>
-                                    <input type="text" name="username" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g. John Doe" value={regData.username} onChange={handleRegChange} required />
+                                    <input type="text" name="username" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g. Osato" value={regData.username} onChange={handleRegChange} required />
                                 </div>
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Department</label>
@@ -228,11 +228,11 @@ export default function AuthPage() {
                             <div className="animate-fade-in d-flex flex-column gap-3">
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Matric Number</label>
-                                    <input type="text" name="matric" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="FUHSI/..." value={regData.matric} onChange={handleRegChange} required />
+                                    <input type="text" name="matric" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder=" " value={regData.matric} onChange={handleRegChange} required />
                                 </div>
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Email Address (For Reports)</label>
-                                    <input type="email" name="email" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="student@fuhsi.edu.ng" value={regData.email} onChange={handleRegChange} required />
+                                    <input type="email" name="email" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder=" " value={regData.email} onChange={handleRegChange} required />
                                 </div>
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Password</label>
