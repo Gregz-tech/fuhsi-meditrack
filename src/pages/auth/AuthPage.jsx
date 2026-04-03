@@ -111,6 +111,16 @@ export default function AuthPage() {
 
             <div className="col-11 col-sm-8 col-md-6 col-lg-4 auth-card rounded-5 p-4 p-sm-5 position-relative">
                 
+                {/* ⬅️ DANGER-THEMED BACK BUTTON */}
+                <div className="d-flex justify-content-start mb-3">
+                    <button 
+                        onClick={() => navigate('/roles')} 
+                        className="btn btn-outline-danger btn-sm rounded-pill px-3 py-2 fw-bold d-flex align-items-center transition-all hover-float"
+                    >
+                        <i className="bi bi-arrow-left-circle-fill me-2 fs-5"></i> Back to Roles
+                    </button>
+                </div>
+
                 <div className="text-center mb-4">
                     <div className="rounded-circle d-inline-flex p-3 mb-3 shadow-sm" style={{ backgroundColor: 'rgba(31, 169, 113, 0.1)', color: 'var(--color-primary)' }}>
                         <i className={`bi ${userRole === 'student' ? 'bi-mortarboard-fill' : userRole === 'staff' ? 'bi-person-badge-fill' : 'bi-person-bounding-box'} fs-1`}></i>
