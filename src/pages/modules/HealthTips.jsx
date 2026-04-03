@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function HealthTips() {
     const navigate = useNavigate();
     const [activeCategory, setActiveCategory] = useState('All');
+    
+    // NEW: State to hold the logged-in user for a personalized greeting
+    const [user, setUser] = useState(null);
+
+    // Fetch the logged-in user on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     // Categorized health tips tailored for university students
     const tipsData = [
@@ -116,7 +127,10 @@ export default function HealthTips() {
                         <div className="rounded-4 d-inline-flex p-3 mb-3 shadow-sm" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', color: '#fff' }}>
                             <i className="bi bi-lightbulb-fill fs-2"></i>
                         </div>
-                        <h2 className="fw-bolder text-dark mb-2">Health Recommendations</h2>
+                        {/* NEW: Personalized Greeting */}
+                        <h2 className="fw-bolder text-dark mb-2">
+                            {user?.name ? `${user.name.split(' ')[0]}'s ` : ''}Health Recommendations
+                        </h2>
                         <p className="text-muted small mb-0">Curated wellness advice for peak academic performance</p>
                     </div>
 
@@ -135,7 +149,12 @@ export default function HealthTips() {
                                 </div>
                                 <h3 className="fw-bolder text-dark mb-3">{featuredTip.title}</h3>
                                 <p className="text-muted lh-lg mb-4" style={{ fontSize: '1.05rem' }}>{featuredTip.content}</p>
-                                <button className="btn btn-outline-dark rounded-pill px-4 py-2 fw-bold text-uppercase" style={{ fontSize: '0.8rem' }}>
+                                
+                                <button 
+                                    onClick={() => alert("Tip saved! (In a future update, this will save to your profile bookmarks)")}
+                                    className="btn btn-outline-dark rounded-pill px-4 py-2 fw-bold text-uppercase hover-float transition-all" 
+                                    style={{ fontSize: '0.8rem' }}
+                                >
                                     <i className="bi bi-bookmark-plus me-2"></i> Save for later
                                 </button>
                             </div>
@@ -174,7 +193,11 @@ export default function HealthTips() {
                                     <p className="text-muted small lh-lg flex-grow-1 mb-4">{tip.content}</p>
                                     <div className="d-flex justify-content-between align-items-center mt-auto border-top pt-3">
                                         <span className="badge bg-light text-muted border px-2 py-1">{tip.category}</span>
-                                        <button className="btn btn-link text-muted p-0 text-decoration-none hover-float" title="Share this tip">
+                                        <button 
+                                            onClick={() => alert("Copied link to clipboard! (Simulated)")}
+                                            className="btn btn-link text-muted p-0 text-decoration-none hover-float" 
+                                            title="Share this tip"
+                                        >
                                             <i className="bi bi-share-fill"></i>
                                         </button>
                                     </div>

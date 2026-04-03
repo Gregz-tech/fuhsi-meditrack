@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ☁️ NEW: Import Convex tools
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function LifestyleCheck() {
     const navigate = useNavigate();
@@ -9,6 +13,22 @@ export default function LifestyleCheck() {
     const [water, setWater] = useState('');
     const [exercise, setExercise] = useState('');
     const [result, setResult] = useState(null);
+
+    // ☁️ NEW: States for Cloud Sync and UI
+    const [user, setUser] = useState(null);
+    const [showPopup, setShowPopup] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ☁️ Initialize Convex mutation
+    const saveRecord = useMutation(api.records.save);
+
+    // Fetch the logged-in user on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     const calculateScore = (e) => {
         e.preventDefault();
@@ -56,9 +76,61 @@ export default function LifestyleCheck() {
         setResult({ score: totalScore, status, advice, color, gradient });
     };
 
+    // ☁️ NEW: Handle saving to the Cloud
+    const handleSave = async () => {
+        if (!user) {
+            alert("Please log in to save your health records.");
+            return;
+        }
+
+        setIsSaving(true);
+        
+        try {
+            // 🚀 Send to Convex Cloud Database!
+            await saveRecord({
+                userId: user.email, 
+                module: 'Lifestyle', // Must match the exact string filter in HealthHistory
+                result: `${result.score}/100`, // Format it so it looks good in the history list
+                category: result.status,
+            });
+
+            // Trigger custom popup upon successful save
+            setShowPopup(true);
+        } catch (error) {
+            alert(`Error saving to cloud: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="container py-4 position-relative overflow-hidden min-vh-100 view-enter">
             
+            {/* --- CUSTOM SUCCESS POPUP OVERLAY --- */}
+            {showPopup && (
+                <div 
+                    className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center animate-fade-in" 
+                    style={{ zIndex: 1050, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="card border-0 shadow-lg rounded-5 p-4 p-md-5 text-center" style={{ maxWidth: '400px', width: '90%' }}>
+                        <div className="rounded-circle d-inline-flex p-4 mb-4 mx-auto" style={{ backgroundColor: 'rgba(31, 169, 113, 0.1)', color: 'var(--color-primary)' }}>
+                            <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
+                        </div>
+                        <h3 className="fw-bolder text-dark mb-2">Successfully Saved!</h3>
+                        <p className="text-muted mb-4 px-2">
+                            Daily habit score of <strong>{result.score}/100</strong> has been securely added to your health journal.
+                        </p>
+                        <button 
+                            onClick={() => navigate('/history')} 
+                            className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm hover-float" 
+                            style={{ backgroundColor: 'var(--color-primary)' }}
+                        >
+                            VIEW HEALTH HISTORY
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* --- ANIMATED BACKGROUND BLOBS (SUNRISE THEME) --- */}
             <style>
                 {`
@@ -175,7 +247,6 @@ export default function LifestyleCheck() {
                             <div className="position-relative" style={{ zIndex: 1 }}>
                                 <h5 className="text-muted mb-3 fw-bolder small tracking-widest text-uppercase">Habit Score</h5>
                                 
-                                {/* FIXED: Replaced text gradient with solid dynamic color */}
                                 <div className="display-1 fw-bolder mb-0" style={{ color: result.color }}>
                                     {result.score}<span className="fs-3 text-muted">/100</span>
                                 </div>
@@ -184,7 +255,7 @@ export default function LifestyleCheck() {
                                     {result.status}
                                 </div>
                                 
-                                <div className="text-start p-4 rounded-4 shadow-sm bg-white mt-2">
+                                <div className="text-start p-4 rounded-4 shadow-sm bg-white mt-2 mb-4">
                                     <h6 className="fw-bolder mb-2 d-flex align-items-center">
                                         <i className="bi bi-lightning-charge-fill me-2" style={{ color: result.color }}></i>
                                         Action Plan
@@ -192,8 +263,22 @@ export default function LifestyleCheck() {
                                     <p className="text-muted small mb-0 lh-lg">{result.advice}</p>
                                 </div>
 
-                                <button className="btn btn-outline-secondary btn-sm w-100 mt-4 rounded-pill fw-bold border-2 py-2">
-                                    <i className="bi bi-calendar-check me-2"></i> Log Daily Habit
+                                {/* ☁️ NEW: Save to History Button */}
+                                <button 
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="btn w-100 py-3 rounded-pill fw-bold transition-all hover-float shadow-sm"
+                                    style={{ 
+                                        backgroundColor: isSaving ? '#6c757d' : '#212529', 
+                                        color: '#fff',
+                                        border: 'none'
+                                    }}
+                                >
+                                    {isSaving ? (
+                                        <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> SAVING TO CLOUD...</>
+                                    ) : (
+                                        <><i className="bi bi-calendar-check me-2"></i> LOG DAILY HABIT</>
+                                    )}
                                 </button>
                             </div>
                         </div>

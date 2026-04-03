@@ -1,11 +1,22 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// ☁️ NEW: Import Convex hooks and your API
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+
 export default function AuthPage() {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Safely extract and format the role, defaulting to 'student' to prevent crashes
+    // ☁️ NEW: Initialize Convex mutations
+    const registerUser = useMutation(api.auth.register);
+    const loginUser = useMutation(api.auth.login);
+    
+    // Loading state for cloud requests
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Safely extract and format the role
     const rawRole = location.state?.role;
     const userRole = (typeof rawRole === 'string') ? rawRole.toLowerCase() : 'student';
 
@@ -32,8 +43,8 @@ export default function AuthPage() {
 
     // Predefined Dropdown Data
     const departments = [
-        "Information Technology & Health Informatics", "Medicine and Surgery", 
-        "Nursing Sciences", "Audiology", "Physiotherapy", "Pharmacology"
+        "Information Technology & Health Informatics", "Audiology", "Biochemistry", "Biomolecular Biology", "Environmental Health Sciences", "Medicine and Surgery", "Microbiology",
+        "Medical Laboratory Science", "Nursing Sciences", "Human Nutrition & Diabetics", "Pharmacology", "Prosthetic & Orthotics", "Physiotherapy",
     ];
     const levels = ["100", "200", "300", "400", "500", "600"];
     const visitorTypes = ["Intern", "Visiting Student", "Guest/Parent", "Contractor"];
@@ -43,37 +54,58 @@ export default function AuthPage() {
         setRegData({ ...regData, [e.target.name]: e.target.value });
     };
 
-    const handleRegisterSubmit = (e) => {
+    // ☁️ UPDATED: Register Handler
+    const handleRegisterSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
         
-        // Build the specific user object based on their role
-        const newUser = {
-            name: regData.username,
-            role: userRole,
-            email: regData.email,
-            ...(userRole === 'student' && { matric: regData.matric, dept: regData.department, level: regData.level }),
-            ...(userRole === 'staff' && { staffId: regData.staffId }),
-            ...(userRole === 'visitor' && { visitorType: regData.visitorType, occupation: regData.occupation }),
-        };
-        
-        localStorage.setItem('user', JSON.stringify(newUser));
-        navigate('/dashboard', { replace: true });
+        try {
+            // Build the specific user object based on their role
+            const newUser = {
+                name: regData.username,
+                role: userRole,
+                email: regData.email,
+                password: regData.password, // Added password to object
+                ...(userRole === 'student' && { matric: regData.matric, dept: regData.department, level: regData.level }),
+                ...(userRole === 'staff' && { staffId: regData.staffId }),
+                ...(userRole === 'visitor' && { visitorType: regData.visitorType, occupation: regData.occupation }),
+            };
+            
+            // 🚀 Send to Convex Cloud Database!
+            const savedUser = await registerUser(newUser);
+            
+            // Save to local storage just to keep the session alive for the Dashboard
+            localStorage.setItem('user', JSON.stringify(savedUser));
+            navigate('/dashboard', { replace: true });
+            
+        } catch (error) {
+            alert(`Registration Error: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleLoginSubmit = (e) => {
+    // ☁️ UPDATED: Login Handler
+    const handleLoginSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
         
-        const activeUser = {
-            name: loginId.split('@')[0].split('/')[0] || "User",
-            role: userRole,
-            email: loginId.includes('@') ? loginId : 'user@fuhsi.edu.ng',
-            ...(userRole === 'student' && { matric: loginId.includes('/') ? loginId : 'FUHSI/ITH/24/001', dept: 'Information Technology', level: '300' }),
-            ...(userRole === 'staff' && { staffId: loginId.includes('@') ? 'STAFF-001' : loginId }),
-            ...(userRole === 'visitor' && { visitorType: 'Guest', occupation: 'Campus Visitor' }),
-        };
+        try {
+            // 🚀 Verify credentials against Convex Cloud Database!
+            const activeUser = await loginUser({ 
+                loginId: loginId, 
+                password: loginPassword 
+            });
 
-        localStorage.setItem('user', JSON.stringify(activeUser));
-        navigate('/dashboard', { replace: true });
+            // Save to local storage for the Dashboard session
+            localStorage.setItem('user', JSON.stringify(activeUser));
+            navigate('/dashboard', { replace: true });
+            
+        } catch (error) {
+            alert(`Login Error: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Helper to get Login Label
@@ -167,8 +199,8 @@ export default function AuthPage() {
                                 placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required 
                             />
                         </div>
-                        <button type="submit" className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2 hover-float" style={{ backgroundColor: 'var(--color-primary)' }}>
-                            ACCESS TERMINAL
+                        <button disabled={isLoading} type="submit" className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2 hover-float" style={{ backgroundColor: 'var(--color-primary)' }}>
+                            {isLoading ? 'VERIFYING...' : 'ACCESS TERMINAL'}
                         </button>
                     </form>
                 ) : (
@@ -281,8 +313,8 @@ export default function AuthPage() {
                                 </div>
                                 <div className="d-flex gap-2 mt-2">
                                     <button type="button" onClick={() => setRegStep(2)} className="btn btn-lg btn-light py-3 fw-bolder rounded-4 w-25"><i className="bi bi-arrow-left"></i></button>
-                                    <button type="submit" className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75" style={{ background: 'linear-gradient(45deg, #1FA971, #0ea5e9)' }}>
-                                        COMPLETE SETUP
+                                    <button disabled={isLoading} type="submit" className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75" style={{ background: 'linear-gradient(45deg, #1FA971, #0ea5e9)' }}>
+                                        {isLoading ? 'SAVING...' : 'COMPLETE SETUP'}
                                     </button>
                                 </div>
                             </div>

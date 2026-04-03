@@ -1,24 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ☁️ NEW: Import Convex tools
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function HealthSummary() {
     const navigate = useNavigate();
     const [emailStatus, setEmailStatus] = useState('idle'); // 'idle', 'sending', 'sent'
+    const [user, setUser] = useState(null);
 
-    // Aggregated Dummy Data
-    const summaryData = {
-        patient: { name: "Oluwaseun Adeyemi", id: "FUHSI/ITH/24/001", date: new Date().toLocaleDateString(), email: "adeyemi.o@fuhsi.edu.ng" },
-        overallStatus: { label: "Excellent Condition", color: "#1FA971" },
-        metrics: {
-            bmi: { value: "22.4", label: "Normal Weight", color: "#1FA971", icon: "bi-heart-pulse-fill" },
-            blood: { value: "O+", label: "Universal Donor", color: "#EF4444", icon: "bi-capsule" },
-            genotype: { value: "AA + AS", label: "Compatible", color: "#1FA971", icon: "bi-droplet-half" },
-            wellness: { value: "4/12", label: "Mild Stress", color: "#3A86FF", icon: "bi-brain" },
-            lifestyle: { value: "85/100", label: "Optimal Vitality", color: "#0ea5e9", icon: "bi-activity" }
+    // 1. Fetch the logged-in user on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
         }
-    };
+    }, []);
+
+    // 2. ☁️ Fetch ALL records for this user from Convex
+    const records = useQuery(api.records.getUserRecords, user?.email ? { userId: user.email } : "skip");
 
     const handleSecureEmail = () => {
+        if (!user) return;
         setEmailStatus('sending');
         
         // Simulate a secure network request to the campus email server
@@ -28,6 +32,87 @@ export default function HealthSummary() {
             setTimeout(() => setEmailStatus('idle'), 3000);
         }, 2000);
     };
+
+    // Helper to get the most recent record for a specific module
+    const getLatestRecord = (moduleName) => {
+        if (!records) return null;
+        return records.find(r => r.module === moduleName); // records are already sorted newest first
+    };
+
+    // Helper to assign colors based on the category string from the database
+    const getColorForCategory = (category, defaultColor) => {
+        if (!category) return '#6c757d'; // Grey for N/A
+        const cat = category.toLowerCase();
+        if (cat.includes('high') || cat.includes('risk') || cat.includes('burnout') || cat.includes('crisis') || cat.includes('action')) return '#EF4444'; // Red
+        if (cat.includes('moderate') || cat.includes('mild') || cat.includes('overweight') || cat.includes('underweight') || cat.includes('risky')) return '#F59E0B'; // Orange
+        if (cat.includes('elevated')) return '#17a2b8'; // Blue
+        if (cat.includes('donor') || cat.includes('blood')) return '#EF4444'; // Red for Blood types
+        return '#1FA971'; // Green for normal/optimal/compatible
+    };
+
+    // 3. Build the dynamic summary data based on the database
+    const buildSummaryData = () => {
+        const bmiRecord = getLatestRecord('BMI');
+        const bloodRecord = getLatestRecord('Blood');
+        const genotypeRecord = getLatestRecord('Genotype');
+        const wellnessRecord = getLatestRecord('Wellness');
+        const lifestyleRecord = getLatestRecord('Lifestyle');
+
+        // Determine overall status based on if any records exist
+        let overallLabel = "Pending Diagnostics";
+        let overallColor = "#6c757d";
+        
+        if (records && records.length > 0) {
+            // A simple logic check: if any recent record is a "High Risk" category, flag the overall status
+            const hasRisks = records.some(r => r.category.toLowerCase().includes('high') || r.category.toLowerCase().includes('risk'));
+            overallLabel = hasRisks ? "Attention Needed" : "Stable Condition";
+            overallColor = hasRisks ? "#F59E0B" : "#1FA971";
+        }
+
+        return {
+            patient: { 
+                name: user?.name || "Guest User", 
+                id: user?.matric || user?.staffId || "FUHSI/GUEST", 
+                date: new Date().toLocaleDateString(), 
+                email: user?.email || "Not Provided" 
+            },
+            overallStatus: { label: overallLabel, color: overallColor },
+            metrics: {
+                bmi: { 
+                    value: bmiRecord?.result || "N/A", 
+                    label: bmiRecord?.category || "Not Recorded", 
+                    color: getColorForCategory(bmiRecord?.category), 
+                    icon: "bi-heart-pulse-fill" 
+                },
+                blood: { 
+                    value: bloodRecord?.result || "N/A", 
+                    label: bloodRecord?.category || "Not Recorded", 
+                    color: getColorForCategory(bloodRecord?.category), 
+                    icon: "bi-capsule" 
+                },
+                genotype: { 
+                    value: genotypeRecord?.result || "N/A", 
+                    label: genotypeRecord?.category || "Not Recorded", 
+                    color: getColorForCategory(genotypeRecord?.category), 
+                    icon: "bi-droplet-half" 
+                },
+                wellness: { 
+                    value: wellnessRecord?.result || "N/A", 
+                    label: wellnessRecord?.category || "Not Recorded", 
+                    color: getColorForCategory(wellnessRecord?.category), 
+                    icon: "bi-brain" 
+                },
+                lifestyle: { 
+                    value: lifestyleRecord?.result || "N/A", 
+                    label: lifestyleRecord?.category || "Not Recorded", 
+                    color: getColorForCategory(lifestyleRecord?.category), 
+                    icon: "bi-activity" 
+                }
+            }
+        };
+    };
+
+    const summaryData = buildSummaryData();
 
     return (
         <div className="container py-4 position-relative overflow-hidden min-vh-100 view-enter">
@@ -73,7 +158,7 @@ export default function HealthSummary() {
                 {/* NEW KIOSK EMAIL BUTTON */}
                 <button 
                     onClick={handleSecureEmail} 
-                    disabled={emailStatus !== 'idle'}
+                    disabled={emailStatus !== 'idle' || !user}
                     className={`btn rounded-pill px-4 py-3 fw-bold shadow-sm d-flex align-items-center transition-all ${
                         emailStatus === 'sent' ? 'btn-success' : 'btn-dark'
                     }`}
@@ -91,51 +176,60 @@ export default function HealthSummary() {
                     {/* MASTER REPORT CONTAINER */}
                     <div className="module-card p-4 p-md-5 shadow-lg rounded-5 border-0 mb-5">
                         
-                        <div className="row align-items-center mb-5 border-bottom pb-4">
-                            <div className="col-md-8 text-center text-md-start mb-3 mb-md-0">
-                                <h2 className="fw-bolder text-dark mb-1">Comprehensive Health Summary</h2>
-                                <p className="text-muted mb-0">Generated by Meditrack Kiosk</p>
+                        {/* Loading State */}
+                        {records === undefined ? (
+                            <div className="text-center py-5">
+                                <div className="spinner-border text-primary" role="status"></div>
+                                <p className="mt-3 text-muted fw-bold">Compiling your clinical data...</p>
                             </div>
-                            <div className="col-md-4 text-center text-md-end">
-                                <div className="badge px-4 py-2 rounded-pill fs-6 mb-2 border shadow-sm" style={{ backgroundColor: `${summaryData.overallStatus.color}15`, color: summaryData.overallStatus.color, borderColor: `${summaryData.overallStatus.color}30` }}>
-                                    Overall: {summaryData.overallStatus.label}
-                                </div>
-                                <div className="small fw-bold text-muted">
-                                    Date: {summaryData.patient.date}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Metrics Grid */}
-                        <div className="row g-4 mb-5">
-                            <h5 className="fw-bolder text-dark w-100 mb-0"><i className="bi bi-clipboard2-pulse text-primary me-2"></i> Clinical Metrics</h5>
-                            
-                            {Object.entries(summaryData.metrics).map(([key, data]) => (
-                                <div className="col-md-6 col-lg-4" key={key}>
-                                    <div className="p-4 rounded-4 shadow-sm border h-100 bg-white d-flex align-items-center gap-3" style={{ borderLeft: `5px solid ${data.color}` }}>
-                                        <div className="rounded-circle p-3 d-flex align-items-center justify-content-center" style={{ backgroundColor: `${data.color}15`, color: data.color, width: '50px', height: '50px' }}>
-                                            <i className={`bi ${data.icon} fs-4`}></i>
+                        ) : (
+                            <>
+                                <div className="row align-items-center mb-5 border-bottom pb-4">
+                                    <div className="col-md-8 text-center text-md-start mb-3 mb-md-0">
+                                        <h2 className="fw-bolder text-dark mb-1">Comprehensive Health Summary</h2>
+                                        <p className="text-muted mb-0">Generated by Meditrack Kiosk for <strong>{summaryData.patient.name}</strong> ({summaryData.patient.id})</p>
+                                    </div>
+                                    <div className="col-md-4 text-center text-md-end">
+                                        <div className="badge px-4 py-2 rounded-pill fs-6 mb-2 border shadow-sm" style={{ backgroundColor: `${summaryData.overallStatus.color}15`, color: summaryData.overallStatus.color, borderColor: `${summaryData.overallStatus.color}30` }}>
+                                            Overall: {summaryData.overallStatus.label}
                                         </div>
-                                        <div>
-                                            <div className="small fw-bold text-muted text-uppercase tracking-wider">{key}</div>
-                                            <div className="fs-4 fw-bolder mb-0" style={{ color: data.color }}>{data.value}</div>
-                                            <div className="small fw-bold text-dark">{data.label}</div>
+                                        <div className="small fw-bold text-muted">
+                                            Date: {summaryData.patient.date}
                                         </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
 
-                        {/* Medical Insight Box */}
-                        <div className="p-4 rounded-4 shadow-sm" style={{ backgroundColor: 'rgba(79, 70, 229, 0.05)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
-                            <h5 className="fw-bolder d-flex align-items-center" style={{ color: '#4f46e5' }}>
-                                <i className="bi bi-shield-lock-fill me-2"></i> Kiosk Privacy Notice
-                            </h5>
-                            <p className="text-muted small mb-0 lh-lg">
-                                This system is operating in a shared campus environment. Your data is not stored locally on this machine. Please ensure you tap "Logout" or return to the main menu before leaving the terminal. The system will automatically clear your session after 60 seconds of inactivity.
-                            </p>
-                        </div>
+                                {/* Metrics Grid */}
+                                <div className="row g-4 mb-5">
+                                    <h5 className="fw-bolder text-dark w-100 mb-0"><i className="bi bi-clipboard2-pulse text-primary me-2"></i> Clinical Metrics</h5>
+                                    
+                                    {Object.entries(summaryData.metrics).map(([key, data]) => (
+                                        <div className="col-md-6 col-lg-4" key={key}>
+                                            <div className="p-4 rounded-4 shadow-sm border h-100 bg-white d-flex align-items-center gap-3 transition-all hover-float" style={{ borderLeft: `5px solid ${data.color}` }}>
+                                                <div className="rounded-circle p-3 d-flex align-items-center justify-content-center" style={{ backgroundColor: `${data.color}15`, color: data.color, width: '50px', height: '50px' }}>
+                                                    <i className={`bi ${data.icon} fs-4`}></i>
+                                                </div>
+                                                <div>
+                                                    <div className="small fw-bold text-muted text-uppercase tracking-wider">{key}</div>
+                                                    <div className="fs-4 fw-bolder mb-0" style={{ color: data.color }}>{data.value}</div>
+                                                    <div className="small fw-bold text-dark">{data.label}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
 
+                                {/* Medical Insight Box */}
+                                <div className="p-4 rounded-4 shadow-sm" style={{ backgroundColor: 'rgba(79, 70, 229, 0.05)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
+                                    <h5 className="fw-bolder d-flex align-items-center" style={{ color: '#4f46e5' }}>
+                                        <i className="bi bi-shield-lock-fill me-2"></i> Kiosk Privacy Notice
+                                    </h5>
+                                    <p className="text-muted small mb-0 lh-lg">
+                                        This system is operating in a shared campus environment. Your data is not stored locally on this machine. Please ensure you tap "Logout" or return to the main menu before leaving the terminal. The system will automatically clear your session after 60 seconds of inactivity.
+                                    </p>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                 </div>

@@ -1,10 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ☁️ NEW: Import Convex tools
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function BloodGroupCheck() {
     const [bloodGroup, setBloodGroup] = useState('');
     const [result, setResult] = useState(null);
     const navigate = useNavigate();
+
+    // ☁️ NEW: States for Cloud Sync and UI
+    const [user, setUser] = useState(null);
+    const [showPopup, setShowPopup] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ☁️ Initialize Convex mutation
+    const saveRecord = useMutation(api.records.save);
+
+    // Fetch the logged-in user on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     const bloodData = {
         'A+': { donate: ['A+', 'AB+'], receive: ['A+', 'A-', 'O+', 'O-'] },
@@ -24,9 +44,66 @@ export default function BloodGroupCheck() {
         }
     };
 
+    // ☁️ NEW: Handle saving to the Cloud
+    const handleSave = async () => {
+        if (!user) {
+            alert("Please log in to save your health records.");
+            return;
+        }
+
+        setIsSaving(true);
+        
+        try {
+            // Determine a smart category tag based on their blood type
+            let categoryTag = 'Compatible';
+            if (bloodGroup === 'O-') categoryTag = 'Universal Donor';
+            if (bloodGroup === 'AB+') categoryTag = 'Universal Recipient';
+
+            // 🚀 Send to Convex Cloud Database!
+            await saveRecord({
+                userId: user.email, 
+                module: 'Blood', // Must match the exact string expected in HealthHistory
+                result: bloodGroup,
+                category: categoryTag,
+            });
+
+            // Trigger custom popup upon successful save
+            setShowPopup(true);
+        } catch (error) {
+            alert(`Error saving to cloud: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="container py-4 position-relative overflow-hidden min-vh-100 view-enter">
             
+            {/* --- CUSTOM SUCCESS POPUP OVERLAY --- */}
+            {showPopup && (
+                <div 
+                    className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center animate-fade-in" 
+                    style={{ zIndex: 1050, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="card border-0 shadow-lg rounded-5 p-4 p-md-5 text-center" style={{ maxWidth: '400px', width: '90%' }}>
+                        <div className="rounded-circle d-inline-flex p-4 mb-4 mx-auto" style={{ backgroundColor: 'rgba(31, 169, 113, 0.1)', color: 'var(--color-primary)' }}>
+                            <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
+                        </div>
+                        <h3 className="fw-bolder text-dark mb-2">Successfully Saved!</h3>
+                        <p className="text-muted mb-4 px-2">
+                            Blood Group <strong>{bloodGroup}</strong> compatibility data has been securely added to your health journal.
+                        </p>
+                        <button 
+                            onClick={() => navigate('/history')} 
+                            className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm hover-float" 
+                            style={{ backgroundColor: 'var(--color-primary)' }}
+                        >
+                            VIEW HEALTH HISTORY
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* --- ANIMATED BACKGROUND BLOBS (RED THEME) --- */}
             <style>
                 {`
@@ -157,12 +234,26 @@ export default function BloodGroupCheck() {
                                     </div>
                                 </div>
 
-                                <div className="alert alert-warning border-0 small mt-4 mb-0 rounded-4 shadow-sm text-start d-flex align-items-center">
+                                <div className="alert alert-warning border-0 small mt-4 mb-3 rounded-4 shadow-sm text-start d-flex align-items-center">
                                     <i className="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
                                     <div>
                                         <strong>Educational tool only.</strong> Transfusions require professional cross-matching in a clinical laboratory.
                                     </div>
                                 </div>
+
+                                {/* ☁️ NEW: Save to History Button */}
+                                <button 
+                                    onClick={handleSave} 
+                                    disabled={isSaving}
+                                    className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm transition-all hover-float" 
+                                    style={{ backgroundColor: isSaving ? '#6c757d' : '#212529' }}
+                                >
+                                    {isSaving ? (
+                                        <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> SAVING TO CLOUD...</>
+                                    ) : (
+                                        <><i className="bi bi-journal-check me-2"></i> SAVE TO HEALTH JOURNAL</>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>

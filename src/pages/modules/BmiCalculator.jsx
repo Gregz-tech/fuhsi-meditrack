@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ☁️ NEW: Import Convex tools
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function BmiCalculator() {
     const [height, setHeight] = useState('');
@@ -9,6 +13,22 @@ export default function BmiCalculator() {
     const [color, setColor] = useState('');
     const [gradient, setGradient] = useState('');
     const navigate = useNavigate();
+
+    // ☁️ NEW: States for Cloud Sync and UI
+    const [user, setUser] = useState(null);
+    const [showPopup, setShowPopup] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ☁️ Initialize Convex mutation
+    const saveRecord = useMutation(api.records.save);
+
+    // Fetch the logged-in user on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     const calculateBmi = (e) => {
         e.preventDefault();
@@ -38,9 +58,61 @@ export default function BmiCalculator() {
         }
     };
 
+    // ☁️ NEW: Handle saving to the Cloud
+    const handleSave = async () => {
+        if (!user) {
+            alert("Please log in to save your health records.");
+            return;
+        }
+
+        setIsSaving(true);
+        
+        try {
+            // 🚀 Send to Convex Cloud Database!
+            await saveRecord({
+                userId: user.email, 
+                module: 'BMI', // Exactly matches the filter in HealthHistory
+                result: bmi,
+                category: status,
+            });
+
+            // Trigger custom popup upon successful save
+            setShowPopup(true);
+        } catch (error) {
+            alert(`Error saving to cloud: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="container py-4 position-relative overflow-hidden min-vh-100 view-enter">
             
+            {/* --- CUSTOM SUCCESS POPUP OVERLAY --- */}
+            {showPopup && (
+                <div 
+                    className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center animate-fade-in" 
+                    style={{ zIndex: 1050, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="card border-0 shadow-lg rounded-5 p-4 p-md-5 text-center" style={{ maxWidth: '400px', width: '90%' }}>
+                        <div className="rounded-circle d-inline-flex p-4 mb-4 mx-auto" style={{ backgroundColor: 'rgba(31, 169, 113, 0.1)', color: 'var(--color-primary)' }}>
+                            <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
+                        </div>
+                        <h3 className="fw-bolder text-dark mb-2">Successfully Saved!</h3>
+                        <p className="text-muted mb-4 px-2">
+                            BMI of <strong>{bmi}</strong> has been securely added to your health journal.
+                        </p>
+                        <button 
+                            onClick={() => navigate('/history')} 
+                            className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm hover-float" 
+                            style={{ backgroundColor: 'var(--color-primary)' }}
+                        >
+                            VIEW HEALTH HISTORY
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* --- ANIMATED BACKGROUND BLOBS (FITNESS THEME) --- */}
             <style>
                 {`
@@ -166,8 +238,18 @@ export default function BmiCalculator() {
                                     </p>
                                 </div>
 
-                                <button className="btn btn-outline-secondary btn-sm w-100 mt-4 rounded-pill fw-bold border-2">
-                                    <i className="bi bi-bookmark-fill me-2"></i> Save to History
+                                {/* ☁️ NEW: Save to History Button */}
+                                <button 
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="btn btn-outline-secondary w-100 mt-4 py-2 rounded-pill fw-bold border-2 transition-all hover-float"
+                                    style={{ backgroundColor: isSaving ? '#6c757d' : 'transparent', color: isSaving ? '#fff' : 'inherit' }}
+                                >
+                                    {isSaving ? (
+                                        <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...</>
+                                    ) : (
+                                        <><i className="bi bi-bookmark-fill me-2"></i> Save to History</>
+                                    )}
                                 </button>
                             </div>
                         </div>

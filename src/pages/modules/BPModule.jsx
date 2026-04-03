@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ☁️ NEW: Import Convex tools
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api"; // Adjust to "../../convex/_generated/api" if your folder structure is shallower
 
 export default function BPModule() {
     const navigate = useNavigate();
@@ -7,9 +11,22 @@ export default function BPModule() {
     const [systolic, setSystolic] = useState('');
     const [diastolic, setDiastolic] = useState('');
     const [result, setResult] = useState(null);
+    const [user, setUser] = useState(null);
     
-    // NEW: State to control our custom success popup
+    // UI States
     const [showPopup, setShowPopup] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // ☁️ Initialize Convex mutation
+    const saveRecord = useMutation(api.records.save);
+
+    // Fetch the logged-in user on mount so we know whose account to save to
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
 
     // American Heart Association (AHA) BP Categories
     const calculateBP = (e) => {
@@ -58,9 +75,30 @@ export default function BPModule() {
         setResult({ category, color, icon, advice, sys, dia });
     };
 
-    const handleSave = () => {
-        // Trigger our custom popup instead of the browser alert
-        setShowPopup(true);
+    const handleSave = async () => {
+        if (!user) {
+            alert("Please log in to save your health records.");
+            return;
+        }
+
+        setIsSaving(true);
+        
+        try {
+            // 🚀 Send to Convex Cloud Database!
+            await saveRecord({
+                userId: user.email, // Link record to this specific user
+                module: 'Blood Pressure',
+                result: `${result.sys}/${result.dia}`,
+                category: result.category,
+            });
+
+            // Trigger custom popup upon successful save
+            setShowPopup(true);
+        } catch (error) {
+            alert(`Error saving to cloud: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -81,11 +119,11 @@ export default function BPModule() {
                             Blood Pressure of <strong>{result.sys}/{result.dia}</strong> has been securely added to your health journal.
                         </p>
                         <button 
-                            onClick={() => navigate('/dashboard')} 
+                            onClick={() => navigate('/history')} 
                             className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm hover-float" 
                             style={{ backgroundColor: 'var(--color-primary)' }}
                         >
-                            RETURN TO DASHBOARD
+                            VIEW HEALTH HISTORY
                         </button>
                     </div>
                 </div>
@@ -170,8 +208,17 @@ export default function BPModule() {
                                         </p>
                                     </div>
 
-                                    <button onClick={handleSave} className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm" style={{ backgroundColor: '#212529' }}>
-                                        <i className="bi bi-journal-check me-2"></i> SAVE TO HEALTH JOURNAL
+                                    <button 
+                                        onClick={handleSave} 
+                                        disabled={isSaving}
+                                        className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm transition-all" 
+                                        style={{ backgroundColor: isSaving ? '#6c757d' : '#212529' }}
+                                    >
+                                        {isSaving ? (
+                                            <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> SAVING TO CLOUD...</>
+                                        ) : (
+                                            <><i className="bi bi-journal-check me-2"></i> SAVE TO HEALTH JOURNAL</>
+                                        )}
                                     </button>
                                 </div>
                             </div>
