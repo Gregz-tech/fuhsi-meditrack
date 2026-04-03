@@ -49,7 +49,7 @@ export default function Landing() {
         }
     ];
 
-    // Auto-rotate features every 4 seconds
+    // Auto-rotate features every 5 seconds
     useEffect(() => {
         const interval = setInterval(() => {
             setActiveIndex((current) => (current + 1) % features.length);
@@ -96,13 +96,13 @@ export default function Landing() {
                     to { opacity: 1; transform: translateY(0) scale(1); }
                 }
                 
-                /* Timer progress bar */
+                /* Timer progress bar synced to 5 seconds */
                 .progress-timer {
                     height: 4px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden; mt-4;
                 }
                 .progress-timer-fill {
                     height: 100%; background: #fff; width: 0%;
-                    animation: timerFill 4s linear infinite;
+                    animation: timerFill 5s linear infinite;
                 }
                 @keyframes timerFill {
                     from { width: 0%; }
@@ -133,7 +133,7 @@ export default function Landing() {
                         </p>
 
                         <button 
-                            onClick={() => navigate('/auth')} 
+                            onClick={() => navigate('/roles')} 
                             className="btn btn-lg rounded-pill px-5 py-4 fw-bolder text-white shadow-lg kiosk-btn-pulse w-100 w-sm-auto d-inline-flex align-items-center justify-content-center"
                             style={{ backgroundColor: 'var(--color-primary)', fontSize: '1.25rem' }}
                         >

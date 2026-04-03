@@ -16,7 +16,7 @@ export default function RoleSelection() {
                 
                 {/* 🎓 Student Card */}
                 <div className="col-lg-4 col-md-6">
-                    <Link to="/auth" state={{ role: 'Student' }} className="text-decoration-none h-100 d-block">
+                    <Link to="/auth" state={{ role: 'student' }} className="text-decoration-none h-100 d-block">
                         <div className="card h-100 border-0 shadow hover-float overflow-hidden rounded-4 cursor-pointer" style={{
                             backgroundImage: `url(${studentImg})`,
                             backgroundSize: 'cover',
@@ -47,7 +47,7 @@ export default function RoleSelection() {
 
                 {/* 💼 Staff Card */}
                 <div className="col-lg-4 col-md-6">
-                    <Link to="/auth" state={{ role: 'Staff' }} className="text-decoration-none h-100 d-block">
+                    <Link to="/auth" state={{ role: 'staff' }} className="text-decoration-none h-100 d-block">
                         <div className="card h-100 border-0 shadow hover-float overflow-hidden rounded-4 cursor-pointer" style={{
                             backgroundImage: `url(${staffImg})`,
                             backgroundSize: 'cover',
@@ -78,7 +78,7 @@ export default function RoleSelection() {
 
                 {/* 🌍 Visitor Card */}
                 <div className="col-lg-4 col-md-6">
-                    <Link to="/auth" state={{ role: 'Visitor' }} className="text-decoration-none h-100 d-block">
+                    <Link to="/auth" state={{ role: 'visitor' }} className="text-decoration-none h-100 d-block">
                         <div className="card h-100 border-0 shadow hover-float overflow-hidden rounded-4 cursor-pointer" style={{
                             backgroundImage: `url(${visitorImg})`,
                             backgroundSize: 'cover',
