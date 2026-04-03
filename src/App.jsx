@@ -10,6 +10,7 @@ import RoleSelection from './pages/auth/RoleSelection';
 
 // Module Imports
 import BmiCalculator from './pages/modules/BmiCalculator';
+import BPModule from './pages/modules/BPModule';
 import GenotypeCheck from './pages/modules/GenotypeCheck';
 import BloodGroupCheck from './pages/modules/BloodGroupCheck';
 import MentalWellnessCheck from './pages/modules/MentalWellnessCheck';
@@ -18,7 +19,6 @@ import HealthHistory from './pages/modules/HealthHistory';
 import HealthTrends from './pages/modules/HealthTrends';
 import HealthSummary from './pages/modules/HealthSummary';
 import HealthTips from './pages/modules/HealthTips';
-// Removed CheckUpReminder
 
 // Layout wrapper
 const StandardLayout = () => {
@@ -50,6 +50,7 @@ function App() {
             
             {/* Module Routes */}
             <Route path="/module-bmi" element={<BmiCalculator />} />
+            <Route path="/module-bp" element={<BPModule />} />
             <Route path="/module-genotype" element={<GenotypeCheck />} />
             <Route path="/module-blood" element={<BloodGroupCheck />} />
             <Route path="/module-wellness" element={<MentalWellnessCheck />} />

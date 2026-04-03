@@ -31,6 +31,7 @@ export default function Dashboard() {
     // Module Data
     const modules = [
         { id: 1, title: 'BMI Checker', desc: 'Calculate your Body Mass Index and health category.', path: '/module-bmi', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&q=80&w=600' },
+        { id: 11, title: 'Blood Pressure', desc: 'Log and monitor your daily blood pressure readings.', path: '/module-bp', img: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&q=80&w=600' },
         { id: 2, title: 'Genotype Compatibility', desc: 'Check genetic compatibility for future planning.', path: '/module-genotype', img: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?auto=format&fit=crop&q=80&w=600' },
         { id: 3, title: 'Blood Group Map', desc: 'Understand donor compatibility and blood traits.', path: '/module-blood', img: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=600' },
         { id: 4, title: 'Mental Wellness', desc: 'A quick assessment of your current mental state.', path: '/module-wellness', img: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=600' },
