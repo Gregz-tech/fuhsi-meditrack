@@ -52,7 +52,7 @@ export default function Login() {
                                     type="email" 
                                     className="form-control" 
                                     id="login_email" 
-                                    placeholder="name@example.com" 
+                                    placeholder="enter your email" 
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required 
