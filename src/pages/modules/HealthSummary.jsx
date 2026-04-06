@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// ☁️ NEW: Import Convex tools
+// ☁️ Import Convex tools
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
@@ -43,8 +43,8 @@ export default function HealthSummary() {
     const getColorForCategory = (category, defaultColor) => {
         if (!category) return '#6c757d'; // Grey for N/A
         const cat = category.toLowerCase();
-        if (cat.includes('high') || cat.includes('risk') || cat.includes('burnout') || cat.includes('crisis') || cat.includes('action')) return '#EF4444'; // Red
-        if (cat.includes('moderate') || cat.includes('mild') || cat.includes('overweight') || cat.includes('underweight') || cat.includes('risky')) return '#F59E0B'; // Orange
+        if (cat.includes('high') || cat.includes('risk') || cat.includes('burnout') || cat.includes('crisis') || cat.includes('action') || cat.includes('hypertension')) return '#EF4444'; // Red
+        if (cat.includes('moderate') || cat.includes('mild') || cat.includes('overweight') || cat.includes('underweight') || cat.includes('risky') || cat.includes('stage')) return '#F59E0B'; // Orange
         if (cat.includes('elevated')) return '#17a2b8'; // Blue
         if (cat.includes('donor') || cat.includes('blood')) return '#EF4444'; // Red for Blood types
         return '#1FA971'; // Green for normal/optimal/compatible
@@ -53,6 +53,7 @@ export default function HealthSummary() {
     // 3. Build the dynamic summary data based on the database
     const buildSummaryData = () => {
         const bmiRecord = getLatestRecord('BMI');
+        const bpRecord = getLatestRecord('Blood Pressure'); // 🔴 NEW: Added Blood Pressure
         const bloodRecord = getLatestRecord('Blood');
         const genotypeRecord = getLatestRecord('Genotype');
         const wellnessRecord = getLatestRecord('Wellness');
@@ -64,9 +65,9 @@ export default function HealthSummary() {
         
         if (records && records.length > 0) {
             // A simple logic check: if any recent record is a "High Risk" category, flag the overall status
-            const hasRisks = records.some(r => r.category.toLowerCase().includes('high') || r.category.toLowerCase().includes('risk'));
+            const hasRisks = records.some(r => r.category.toLowerCase().includes('high') || r.category.toLowerCase().includes('risk') || r.category.toLowerCase().includes('crisis'));
             overallLabel = hasRisks ? "Attention Needed" : "Stable Condition";
-            overallColor = hasRisks ? "#F59E0B" : "#1FA971";
+            overallColor = hasRisks ? "#EF4444" : "#1FA971";
         }
 
         return {
@@ -83,6 +84,13 @@ export default function HealthSummary() {
                     label: bmiRecord?.category || "Not Recorded", 
                     color: getColorForCategory(bmiRecord?.category), 
                     icon: "bi-heart-pulse-fill" 
+                },
+                // 🔴 NEW: Blood Pressure Metric Block
+                bloodPressure: {
+                    value: bpRecord?.result || "N/A",
+                    label: bpRecord?.category || "Not Recorded",
+                    color: getColorForCategory(bpRecord?.category),
+                    icon: "bi-activity"
                 },
                 blood: { 
                     value: bloodRecord?.result || "N/A", 
@@ -106,7 +114,7 @@ export default function HealthSummary() {
                     value: lifestyleRecord?.result || "N/A", 
                     label: lifestyleRecord?.category || "Not Recorded", 
                     color: getColorForCategory(lifestyleRecord?.category), 
-                    icon: "bi-activity" 
+                    icon: "bi-bicycle" 
                 }
             }
         };
@@ -155,7 +163,6 @@ export default function HealthSummary() {
                     </button>
                 </div>
                 
-                {/* NEW KIOSK EMAIL BUTTON */}
                 <button 
                     onClick={handleSecureEmail} 
                     disabled={emailStatus !== 'idle' || !user}
@@ -210,7 +217,7 @@ export default function HealthSummary() {
                                                     <i className={`bi ${data.icon} fs-4`}></i>
                                                 </div>
                                                 <div>
-                                                    <div className="small fw-bold text-muted text-uppercase tracking-wider">{key}</div>
+                                                    <div className="small fw-bold text-muted text-uppercase tracking-wider">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
                                                     <div className="fs-4 fw-bolder mb-0" style={{ color: data.color }}>{data.value}</div>
                                                     <div className="small fw-bold text-dark">{data.label}</div>
                                                 </div>

@@ -16,6 +16,13 @@ export default function AuthPage() {
     // Loading state for cloud requests
     const [isLoading, setIsLoading] = useState(false);
 
+    // 🔴 Custom Error Popup States
+    const [showError, setShowError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    // 🛡️ KIOSK HACK: Read-only lock to defeat browser password managers
+    const [isLocked, setIsLocked] = useState(true);
+
     // Safely extract and format the role
     const rawRole = location.state?.role;
     const userRole = (typeof rawRole === 'string') ? rawRole.toLowerCase() : 'student';
@@ -54,61 +61,73 @@ export default function AuthPage() {
         setRegData({ ...regData, [e.target.name]: e.target.value });
     };
 
-    // ☁️ UPDATED: Register Handler
+    // ☁️ Register Handler
     const handleRegisterSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         
         try {
-            // Build the specific user object based on their role
             const newUser = {
                 name: regData.username,
                 role: userRole,
                 email: regData.email,
-                password: regData.password, // Added password to object
+                password: regData.password, 
                 ...(userRole === 'student' && { matric: regData.matric, dept: regData.department, level: regData.level }),
                 ...(userRole === 'staff' && { staffId: regData.staffId }),
                 ...(userRole === 'visitor' && { visitorType: regData.visitorType, occupation: regData.occupation }),
             };
             
-            // 🚀 Send to Convex Cloud Database!
             const savedUser = await registerUser(newUser);
             
-            // Save to local storage just to keep the session alive for the Dashboard
             localStorage.setItem('user', JSON.stringify(savedUser));
             navigate('/dashboard', { replace: true });
             
         } catch (error) {
-            alert(`Registration Error: ${error.message}`);
+            let cleanMessage = "Registration failed. Please try again.";
+            if (error.message.includes("already exists")) {
+                cleanMessage = "An account with this email or ID already exists.";
+            } else {
+                cleanMessage = error.message.split('Uncaught Error: ')[1]?.split('at handler')[0]?.trim() || cleanMessage;
+            }
+            setErrorMessage(cleanMessage);
+            setShowError(true);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // ☁️ UPDATED: Login Handler
+    // ☁️ Login Handler
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         
         try {
-            // 🚀 Verify credentials against Convex Cloud Database!
             const activeUser = await loginUser({ 
                 loginId: loginId, 
                 password: loginPassword 
             });
 
-            // Save to local storage for the Dashboard session
             localStorage.setItem('user', JSON.stringify(activeUser));
             navigate('/dashboard', { replace: true });
             
         } catch (error) {
-            alert(`Login Error: ${error.message}`);
+            let cleanMessage = "An error occurred. Please try again.";
+            
+            if (error.message.includes("Invalid credentials")) {
+                cleanMessage = "Invalid credentials. Please double-check your details and try again.";
+            } else if (error.message.includes("not found") || error.message.includes("does not exist")) {
+                cleanMessage = "Account not found. Please ensure you have registered.";
+            } else {
+                cleanMessage = error.message.split('Uncaught Error: ')[1]?.split('at handler')[0]?.trim() || cleanMessage;
+            }
+
+            setErrorMessage(cleanMessage);
+            setShowError(true);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Helper to get Login Label
     const getLoginLabel = () => {
         if (userRole === 'student') return "Matric Number or Email";
         if (userRole === 'staff') return "Staff ID or Email";
@@ -118,6 +137,29 @@ export default function AuthPage() {
     return (
         <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center position-relative overflow-hidden" style={{ backgroundColor: '#f8f9fa' }}>
             
+            {/* 🔴 CUSTOM ERROR POPUP OVERLAY */}
+            {showError && (
+                <div 
+                    className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center animate-fade-in" 
+                    style={{ zIndex: 1050, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="card border-0 shadow-lg rounded-5 p-4 p-md-5 text-center" style={{ maxWidth: '400px', width: '90%' }}>
+                        <div className="rounded-circle d-inline-flex p-4 mb-4 mx-auto" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
+                            <i className="bi bi-x-octagon-fill" style={{ fontSize: '4rem' }}></i>
+                        </div>
+                        <h3 className="fw-bolder text-dark mb-2">Authentication Failed</h3>
+                        <p className="text-muted mb-4 px-2">{errorMessage}</p>
+                        <button 
+                            onClick={() => setShowError(false)} 
+                            className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm hover-float transition-all" 
+                            style={{ backgroundColor: '#EF4444' }}
+                        >
+                            TRY AGAIN
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <style>
                 {`
                 .auth-blob {
@@ -143,12 +185,8 @@ export default function AuthPage() {
 
             <div className="col-11 col-sm-8 col-md-6 col-lg-4 auth-card rounded-5 p-4 p-sm-5 position-relative">
                 
-                {/* ⬅️ DANGER-THEMED BACK BUTTON */}
                 <div className="d-flex justify-content-start mb-3">
-                    <button 
-                        onClick={() => navigate('/roles')} 
-                        className="btn btn-outline-danger btn-sm rounded-pill px-3 py-2 fw-bold d-flex align-items-center transition-all hover-float"
-                    >
+                    <button onClick={() => navigate('/roles')} className="btn btn-outline-danger btn-sm rounded-pill px-3 py-2 fw-bold d-flex align-items-center transition-all hover-float">
                         <i className="bi bi-arrow-left-circle-fill me-2 fs-5"></i> Back to Roles
                     </button>
                 </div>
@@ -161,19 +199,18 @@ export default function AuthPage() {
                     <p className="text-muted small">FUHSI Meditrack Kiosk Authentication</p>
                 </div>
 
-                {/* --- TOGGLE BUTTONS --- */}
                 <div className="d-flex bg-light rounded-pill p-1 mb-4 shadow-sm">
                     <button 
                         className={`btn rounded-pill w-50 fw-bold transition-all ${isLogin ? 'btn-white shadow-sm' : 'border-0 text-muted'}`}
                         style={{ backgroundColor: isLogin ? '#fff' : 'transparent', color: isLogin ? 'var(--color-primary)' : 'inherit' }}
-                        onClick={() => { setIsLogin(true); setRegStep(1); }}
+                        onClick={() => { setIsLogin(true); setRegStep(1); setIsLocked(true); }}
                     >
                         Log In
                     </button>
                     <button 
                         className={`btn rounded-pill w-50 fw-bold transition-all ${!isLogin ? 'btn-white shadow-sm' : 'border-0 text-muted'}`}
                         style={{ backgroundColor: !isLogin ? '#fff' : 'transparent', color: !isLogin ? 'var(--color-primary)' : 'inherit' }}
-                        onClick={() => setIsLogin(false)}
+                        onClick={() => { setIsLogin(false); setIsLocked(true); }}
                     >
                         Register
                     </button>
@@ -183,24 +220,44 @@ export default function AuthPage() {
                 {/* LOGIN FORM              */}
                 {/* ======================= */}
                 {isLogin ? (
-                    <form onSubmit={handleLoginSubmit} className="animate-fade-in d-flex flex-column gap-3">
+                    <form onSubmit={handleLoginSubmit} autoComplete="off" className="animate-fade-in d-flex flex-column gap-3">
+                        {/* Hidden honeypot inputs */}
+                        <input type="text" style={{ display: 'none' }} />
+                        <input type="password" style={{ display: 'none' }} />
+
                         <div>
                             <label className="form-label small fw-bolder text-uppercase text-muted ms-1">{getLoginLabel()}</label>
                             <input 
-                                type="text" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" 
+                                type="text" 
+                                className="form-control form-control-lg border-0 bg-light rounded-4 px-4" 
                                 placeholder={`Enter your ${getLoginLabel().toLowerCase()}`}
-                                value={loginId} onChange={(e) => setLoginId(e.target.value)} required 
+                                value={loginId} 
+                                onChange={(e) => setLoginId(e.target.value)} 
+                                required 
+                                readOnly={isLocked}
+                                onFocus={() => setIsLocked(false)}
+                                autoComplete="off"
+                                spellCheck="false"
+                                data-lpignore="true"
                             />
                         </div>
                         <div>
                             <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Password</label>
                             <input 
-                                type="password" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" 
-                                placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required 
+                                type="password" 
+                                className="form-control form-control-lg border-0 bg-light rounded-4 px-4" 
+                                placeholder="••••••••" 
+                                value={loginPassword} 
+                                onChange={(e) => setLoginPassword(e.target.value)} 
+                                required 
+                                readOnly={isLocked}
+                                onFocus={() => setIsLocked(false)}
+                                autoComplete="off"
+                                data-lpignore="true" 
                             />
                         </div>
-                        <button disabled={isLoading} type="submit" className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2 hover-float" style={{ backgroundColor: 'var(--color-primary)' }}>
-                            {isLoading ? 'VERIFYING...' : 'ACCESS TERMINAL'}
+                        <button disabled={isLoading} type="submit" className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2 hover-float transition-all" style={{ backgroundColor: 'var(--color-primary)' }}>
+                            {isLoading ? <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> VERIFYING...</> : 'ACCESS TERMINAL'}
                         </button>
                     </form>
                 ) : (
@@ -208,7 +265,7 @@ export default function AuthPage() {
                 /* ======================= */
                 /* DYNAMIC REGISTER WIZARD */
                 /* ======================= */
-                    <form onSubmit={handleRegisterSubmit} className="animate-fade-in d-flex flex-column gap-3">
+                    <form onSubmit={handleRegisterSubmit} autoComplete="off" className="animate-fade-in d-flex flex-column gap-3">
                         
                         <div className="mb-3">
                             <div className="d-flex justify-content-between small text-muted fw-bold mb-1">
@@ -224,7 +281,7 @@ export default function AuthPage() {
                             <div className="animate-fade-in d-flex flex-column gap-3">
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Preferred Username</label>
-                                    <input type="text" name="username" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g Osato" value={regData.username} onChange={handleRegChange} required />
+                                    <input type="text" name="username" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g Osato" value={regData.username} onChange={handleRegChange} required autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} spellCheck="false" data-lpignore="true" />
                                 </div>
                                 
                                 {userRole === 'student' && (
@@ -251,13 +308,13 @@ export default function AuthPage() {
                                     if(userRole === 'student' && regData.username && regData.department) setRegStep(2);
                                     else if (userRole === 'visitor' && regData.username && regData.visitorType) setRegStep(2);
                                     else if (userRole === 'staff' && regData.username) setRegStep(2);
-                                }} className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2" style={{ backgroundColor: 'var(--color-primary)' }}>
+                                }} className="btn btn-lg w-100 py-3 fw-bolder rounded-4 text-white shadow-sm mt-2 transition-all hover-float" style={{ backgroundColor: 'var(--color-primary)' }}>
                                     NEXT <i className="bi bi-arrow-right ms-2"></i>
                                 </button>
                             </div>
                         )}
 
-                        {/* STEP 2: Role Specific Detail (Level / Staff ID / Occupation) */}
+                        {/* STEP 2: Role Specific Detail */}
                         {regStep === 2 && (
                             <div className="animate-fade-in d-flex flex-column gap-3">
                                 {userRole === 'student' && (
@@ -272,22 +329,22 @@ export default function AuthPage() {
                                 {userRole === 'staff' && (
                                     <div>
                                         <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Staff ID Number</label>
-                                        <input type="text" name="staffId" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter your valid StaffID" value={regData.staffId} onChange={handleRegChange} />
+                                        <input type="text" name="staffId" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter your valid StaffID" value={regData.staffId} onChange={handleRegChange} autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} data-lpignore="true" />
                                     </div>
                                 )}
                                 {userRole === 'visitor' && (
                                     <div>
                                         <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Occupation / Affiliation</label>
-                                        <input type="text" name="occupation" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g. IT Consultant" value={regData.occupation} onChange={handleRegChange} required />
+                                        <input type="text" name="occupation" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="e.g. IT Consultant" value={regData.occupation} onChange={handleRegChange} required autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} data-lpignore="true" />
                                     </div>
                                 )}
                                 <div className="d-flex gap-2 mt-2">
-                                    <button type="button" onClick={() => setRegStep(1)} className="btn btn-lg btn-light py-3 fw-bolder rounded-4 w-25"><i className="bi bi-arrow-left"></i></button>
+                                    <button type="button" onClick={() => setRegStep(1)} className="btn btn-lg btn-light py-3 fw-bolder rounded-4 w-25 transition-all hover-float"><i className="bi bi-arrow-left"></i></button>
                                     <button type="button" onClick={() => { 
                                         if(userRole === 'student' && regData.level) setRegStep(3);
                                         else if (userRole === 'staff' && regData.staffId) setRegStep(3);
                                         else if (userRole === 'visitor' && regData.occupation) setRegStep(3);
-                                    }} className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75" style={{ backgroundColor: 'var(--color-primary)' }}>
+                                    }} className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75 transition-all hover-float" style={{ backgroundColor: 'var(--color-primary)' }}>
                                         NEXT <i className="bi bi-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -297,24 +354,27 @@ export default function AuthPage() {
                         {/* STEP 3: Credentials (Matric/Email/Password) */}
                         {regStep === 3 && (
                             <div className="animate-fade-in d-flex flex-column gap-3">
+                                <input type="text" style={{ display: 'none' }} />
+                                <input type="password" style={{ display: 'none' }} />
+
                                 {userRole === 'student' && (
                                     <div>
                                         <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Matric Number</label>
-                                        <input type="text" name="matric" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter your Matric NO" value={regData.matric} onChange={handleRegChange} required />
+                                        <input type="text" name="matric" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter your Matric NO" value={regData.matric} onChange={handleRegChange} required autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} spellCheck="false" data-lpignore="true" />
                                     </div>
                                 )}
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Email Address (For Reports)</label>
-                                    <input type="email" name="email" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter a valid email" value={regData.email} onChange={handleRegChange} required />
+                                    <input type="email" name="email" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Enter a valid email" value={regData.email} onChange={handleRegChange} required autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} spellCheck="false" data-lpignore="true" />
                                 </div>
                                 <div>
                                     <label className="form-label small fw-bolder text-uppercase text-muted ms-1">Password</label>
-                                    <input type="password" name="password" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Create a secure password" value={regData.password} onChange={handleRegChange} required />
+                                    <input type="password" name="password" className="form-control form-control-lg border-0 bg-light rounded-4 px-4" placeholder="Create a secure password" value={regData.password} onChange={handleRegChange} required autoComplete="off" readOnly={isLocked} onFocus={() => setIsLocked(false)} data-lpignore="true" />
                                 </div>
                                 <div className="d-flex gap-2 mt-2">
-                                    <button type="button" onClick={() => setRegStep(2)} className="btn btn-lg btn-light py-3 fw-bolder rounded-4 w-25"><i className="bi bi-arrow-left"></i></button>
-                                    <button disabled={isLoading} type="submit" className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75" style={{ background: 'linear-gradient(45deg, #1FA971, #0ea5e9)' }}>
-                                        {isLoading ? 'SAVING...' : 'COMPLETE SETUP'}
+                                    <button type="button" onClick={() => setRegStep(2)} className="btn btn-lg btn-light py-3 fw-bolder rounded-4 w-25 transition-all hover-float"><i className="bi bi-arrow-left"></i></button>
+                                    <button disabled={isLoading} type="submit" className="btn btn-lg py-3 fw-bolder rounded-4 text-white shadow-sm w-75 transition-all hover-float" style={{ background: 'linear-gradient(45deg, #1FA971, #0ea5e9)' }}>
+                                        {isLoading ? <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> SAVING...</> : 'COMPLETE SETUP'}
                                     </button>
                                 </div>
                             </div>
